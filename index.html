@@ -24,6 +24,7 @@
     <script>
         
         var messages = document.getElementById("messages");
+        var webTesting = false;
 
         async function loadEnvironment() {
             const response = await fetch("./environment.json");
@@ -41,6 +42,7 @@
             if(localStorage.getItem("environment")) {
                 window.environment = JSON.parse(localStorage.getItem("environment"));
                 messages.textContent = "Environment variables loaded from localStorage.";
+                webTesting = true;
                 bulkOperationRunQuery();
             } else {
                 // Show environment form to set environment variables mannually
@@ -111,7 +113,11 @@
                 "groupObjects": true
             };
             const shopifyUrl = `${window.environment.API_URL}/${window.environment.VERSION}/graphql.json`;
-            fetch(`proxy.php?url=${encodeURIComponent(shopifyUrl)}`, {
+            var url = "proxy.php?url=" + encodeURIComponent(shopifyUrl);
+            if(webTesting) {
+                var url = `${window.environment.API_URL}/${window.environment.VERSION}/graphql.json`;
+            }
+            fetch(url, {
                 method: "POST",
                 headers: {
                     "X-Shopify-Access-Token": window.environment.ACCESS_TOKEN,
@@ -153,6 +159,10 @@
                 }
             `;
             const shopifyUrl = `${window.environment.API_URL}/${window.environment.VERSION}/graphql.json`;
+            var url = "proxy.php?url=" + encodeURIComponent(shopifyUrl);
+            if(webTesting) {
+                var url = `${window.environment.API_URL}/${window.environment.VERSION}/graphql.json`;
+            }
             fetch(`proxy.php?url=${encodeURIComponent(shopifyUrl)}`, {
                 method: "POST",
                 headers: {
