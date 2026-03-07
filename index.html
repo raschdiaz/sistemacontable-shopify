@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <h1>Hello World</h1>
+    <label id="messages"></label>
+    <form id="environment-form" style="display: none;" onsubmit="event.preventDefault(); saveEnvironment(this);">
+        <label for="api-url">API URL:</label>
+        <input type="text" name="api-url" required>
+        <br>
+        <label for="version">Version:</label>
+        <input type="text" name="version" required>
+        <br>
+        <label for="access-token">Access Token:</label>
+        <input type="text" name="access-token" required>
+        <br>
+        <button type="submit">Save & Connect</button>
+    </form>
+    <div id="table-container"></div>
+    <script>
+        
+        var messages = document.getElementById("messages");
+
+        async function loadEnvironment() {
+            const response = await fetch("./environment.json");
+            return await response.json();
+        }
+
+        // Load environment variables and logic synchronously
+        loadEnvironment().then((environment) => {
+            window.environment = environment;
+            messages.textContent = "Environment variables loaded successfully.";
+            bulkOperationRunQuery();
+        }).catch((error) => {
+            console.error("Error loading environment:", error);
+            messages.textContent = "Error loading environment variables. "+error.message;
+            if(localStorage.getItem("environment")) {
+                window.environment = JSON.parse(localStorage.getItem("environment"));
+                messages.textContent = "Environment variables loaded from localStorage.";
+                bulkOperationRunQuery();
+            } else {
+                // Show environment form to set environment variables mannually
+                document.getElementById("environment-form").style.display = "block";
+            }
+        });
+
+        function saveEnvironment(form) {
+            const apiUrl = form.querySelector('input[name="api-url"]').value;
+            const version = form.querySelector('input[name="version"]').value;
+            const accessToken = form.querySelector('input[name="access-token"]').value;
+
+            // Save environment variables to localStorage
+            const environment = { API_URL: apiUrl, VERSION: version, ACCESS_TOKEN: accessToken };
+            localStorage.setItem("environment", JSON.stringify(environment));
+            window.environment = environment;
+            localStorage.setItem("environment", JSON.stringify(environment));
+            messages.textContent = "Environment variables loaded successfully.";
+            bulkOperationRunQuery();
+        }
+
+        function getYesterdayLastSecondDate() {
+            // 1. Get the current date/time
+            const date = new Date();
+
+            // 2. Set the time to the very beginning of today (00:00:00.000)
+            date.setUTCHours(0, 0, 0, 0);
+
+            // 3. Subtract 1 second (1000 milliseconds)
+            date.setUTCSeconds(date.getUTCSeconds() - 1);
+
+            // 4. Convert to ISO String
+            let result = date.toISOString();
+
+            result = result.replace(".000Z", "Z"); // Remove milliseconds for Shopify compatibility
+            console.log(result); 
+            // If today is 2026-03-07, output will be: "2026-03-06T23:59:59.000Z"
+            return result;
+        }
+
+        function bulkOperationRunQuery() {
+            const query = `
+                mutation bulkOperationRunQuery($query: String!, $groupObjects: Boolean!) {
+                    bulkOperationRunQuery(query: $query, groupObjects: $groupObjects) {
+                        bulkOperation {
+                        completedAt
+                        createdAt
+                        errorCode
+                        fileSize
+                        id
+                        objectCount
+                        partialDataUrl
+                        query
+                        rootObjectCount
+                        status
+                        type
+                        url
+                        }
+                        userErrors {
+                        field
+                        message
+                        }
+                    }
+                }
+            `;
+            const variables = {
+                "query": `{ orders(first: 250, reverse: true, query: \"financial_status:paid updated_at:>'${getYesterdayLastSecondDate()}'\") { edges { node { id name createdAt displayFinancialStatus displayFulfillmentStatus updatedAt totalPriceSet { shopMoney { amount currencyCode } } customer { id email firstName lastName } shippingAddress { address1 city zip country } lineItems(first: 250) { edges { node { title quantity sku originalUnitPriceSet { shopMoney { amount } } } } } transactions(first: 250) { gateway kind status paymentDetails { __typename ... on CardPaymentDetails { company number } } } shippingLines(first: 250) { edges { node { title carrierIdentifier code source originalPriceSet { shopMoney { amount currencyCode } } discountedPriceSet { shopMoney { amount } } } } } } } pageInfo { hasNextPage hasPreviousPage endCursor startCursor } } }`,
+                "groupObjects": true
+            };
+            const shopifyUrl = `${window.environment.API_URL}/${window.environment.VERSION}/graphql.json`;
+            fetch(`proxy.php?url=${encodeURIComponent(shopifyUrl)}`, {
+                method: "POST",
+                headers: {
+                    "X-Shopify-Access-Token": window.environment.ACCESS_TOKEN,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    query,
+                    variables
+                })
+            })
+            .then(response => response.json())
+            .then(response => {
+                console.log(response);
+                if(response.data.bulkOperationRunQuery.bulkOperation.status === "CREATED") {
+                    messages.textContent = "Bulk operation started successfully. Checking Shopify Admin for progress...";
+                    currentBulkOperation();
+                } else {
+                    messages.textContent = "Failed to start bulk operation: " + response.data.bulkOperationRunQuery.userErrors.map(e => e.message).join(", ");
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching bulkOperationRunQuery:", error);
+            });
+        }
+
+        function currentBulkOperation() {
+            const query = `
+                query {
+                currentBulkOperation {
+                    id
+                    status
+                    errorCode
+                    createdAt
+                    completedAt
+                    objectCount
+                    fileSize
+                    url
+                }
+                }
+            `;
+            const shopifyUrl = `${window.environment.API_URL}/${window.environment.VERSION}/graphql.json`;
+            fetch(`proxy.php?url=${encodeURIComponent(shopifyUrl)}`, {
+                method: "POST",
+                headers: {
+                    "X-Shopify-Access-Token": window.environment.ACCESS_TOKEN,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    query
+                })
+            })
+            .then(response => response.json())
+            .then(response => {
+                console.log(response);
+                if(response.data.currentBulkOperation.status === "RUNNING") {
+                    messages.textContent = "Bulk operation is still running. Checking again in 5 seconds...";
+                    setTimeout(currentBulkOperation, 5000);
+                } else if(response.data.currentBulkOperation.status === "COMPLETED") {
+                    messages.textContent = "Bulk operation completed successfully. File URL: " + response.data.currentBulkOperation.url;
+                    downloadJSONL(response.data.currentBulkOperation.url);
+                } else {
+                    messages.textContent = "Bulk operation status: " + response.data.currentBulkOperation.status;
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching currentBulkOperation:", error);
+            });
+        }
+
+        function downloadJSONL(url) {
+            fetch(url)
+                .then(response => response.text())
+                .then(data => {
+                    console.log("Downloaded JSONL data:", data);
+                    // 1. Split by newline
+                    // 2. Filter out empty lines (Shopify files often end with a trailing newline)
+                    // 3. Parse each line into a JS object
+                    const jsonArray = data
+                        .trim()
+                        .split('\n')
+                        .map(line => JSON.parse(line));
+                    console.log(jsonArray);
+                    generateShopifyTable(jsonArray, "table-container");
+                })
+                .catch(error => {
+                    console.error("Error downloading JSON:", error);
+                });
+        }
+
+        function generateShopifyTable(data, containerId) {
+            // 1. DATA RESTRUCTURING (Link children to parents)
+            const ordersMap = {};
+            window.ordersMap = ordersMap;
+            const processedOrders = [];
+
+            // Separate parents (Orders) and children (Line Items/Shipping)
+            data.forEach(item => {
+                if (item.id && item.id.includes('Order')) {
+                    item.lineItems = [];
+                    ordersMap[item.id] = item;
+                    processedOrders.push(item);
+                }
+            });
+
+            // Attach children to their parents
+            data.forEach(item => {
+                if (item.__parentId && ordersMap[item.__parentId]) {
+                    ordersMap[item.__parentId].lineItems.push(item);
+                }
+            });
+
+            // 2. TABLE GENERATION
+            const container = document.getElementById(containerId);
+            let html = `
+                <table border="1" style="border-collapse: collapse; width: 100%; font-family: sans-serif;">
+                    <thead>
+                        <tr style="background-color: #f2f2f2;">
+                            <th>Order Name</th>
+                            <th>Customer</th>
+                            <th>Date</th>
+                            <th>Total</th>
+                            <th>Products (SKU)</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            processedOrders.forEach(order => {
+                // Extracting nested values safely
+                const customerName = order.customer ? `${order.customer.firstName} ${order.customer.lastName}` : 'N/A';
+                const total = `${order.totalPriceSet.shopMoney.amount} ${order.totalPriceSet.shopMoney.currencyCode}`;
+                const date = new Date(order.createdAt).toLocaleDateString();
+                
+                // Formating line items as a list
+                const productsHtml = order.lineItems
+                    .filter(li => li.title && li.sku) // Only show actual products, skip shipping lines
+                    .map(li => `<div>• ${li.title} (<strong>${li.sku}</strong>) x${li.quantity}</div>`)
+                    .join('');
+
+                html += `
+                    <tr>
+                        <td><strong>${order.name}</strong></td>
+                        <td>${customerName}</td>
+                        <td>${date}</td>
+                        <td>${total}</td>
+                        <td>${productsHtml}</td>
+                        <td>${order.displayFinancialStatus}</td>
+                        <td><button onclick="createInvoice('${order.id}')">Create Invoice</button></td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function createInvoice(orderId) {
+            const order = window.ordersMap[orderId];
+            // Here you would implement the logic to create an invoice based on the order data
+            // This could involve sending a request to your backend or directly to an invoicing API
+            console.log("Creating invoice for order:", order);
+        }
+    </script>
+</body>
+</html>
