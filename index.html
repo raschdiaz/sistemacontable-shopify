@@ -114,7 +114,7 @@
             const shopifyUrl = `${window.environment.API_URL}/${window.environment.VERSION}/graphql.json`;
             var url = "proxy.php?url=" + encodeURIComponent(shopifyUrl);
             if(webTesting) {
-                var url = `${window.environment.API_URL}/${window.environment.VERSION}/graphql.json`;
+                var url = "https://corsproxy.io/?" + encodeURIComponent(shopifyUrl);
             }
             fetch(url, {
                 method: "POST",
