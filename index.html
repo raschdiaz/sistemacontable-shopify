@@ -24,7 +24,7 @@
     <script>
         
         var messages = document.getElementById("messages");
-        var webTesting = false;
+        var webTesting = window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1";
 
         async function loadEnvironment() {
             const response = await fetch("./environment.json");
@@ -42,7 +42,6 @@
             if(localStorage.getItem("environment")) {
                 window.environment = JSON.parse(localStorage.getItem("environment"));
                 messages.textContent = "Environment variables loaded from localStorage.";
-                webTesting = true;
                 bulkOperationRunQuery();
             } else {
                 // Show environment form to set environment variables mannually
