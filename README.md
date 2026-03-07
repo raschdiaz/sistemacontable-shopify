@@ -1,5 +1,8 @@
 Sistemacontable Shopify Admin GraphQL API
 
-- Create a "environment.json" for local env (use web form to testing on page).
-- Set the following env variables:
-    
+LOCAL ENV
+- Rename the "environment.json.example" file to "environment.json".
+- Update the values of the "environment.json" file.
+
+WEB TESTING
+- Set the environment values using the web form provided when loading the site on GIthub Pages.
