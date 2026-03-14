@@ -254,7 +254,7 @@
                 // Extracting nested values safely
                 const customerName = order.customer ? `${order.customer.firstName} ${order.customer.lastName}` : 'N/A';
                 const total = `${order.totalPriceSet.shopMoney.amount} ${order.totalPriceSet.shopMoney.currencyCode}`;
-                const date = new Date(order.createdAt).toLocaleDateString();
+                const date = order.createdAt;//new Date(order.createdAt).toLocaleDateString();
                 
                 // Formating line items as a list
                 const productsHtml = order.lineItems
@@ -267,7 +267,7 @@
                         <td><strong>${order.name}</strong></td>
                         <td>${customerName}</td>
                         <td>${date}</td>
-                        <td>${new Date(order.updatedAt).toISOString()}</td>
+                        <td>${order.updatedAt}</td>
                         <td>${total}</td>
                         <td>${productsHtml}</td>
                         <td>${order.displayFinancialStatus}</td>

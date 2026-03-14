@@ -280,18 +280,7 @@
        foreach ($data as $order) {
             $customerName = isset($order['customer']) ? $order['customer']['firstName'] . ' ' . $order['customer']['lastName'] : 'N/A';
             $total = isset($order['totalPriceSet']['shopMoney']['amount']) && isset($order['totalPriceSet']['shopMoney']['currencyCode']) ? $order['totalPriceSet']['shopMoney']['amount'] . ' ' . $order['totalPriceSet']['shopMoney']['currencyCode'] : 'N/A';
-            $date = isset($order['createdAt']) ? date('Y-m-d', strtotime($order['createdAt'])) : 'N/A';
-
-            $productsHtml = '';
-            if (isset($order['lineItems'])) {
-                foreach ($order['lineItems'] as $li) {
-                    if (isset($li['title']) && isset($li['sku'])) {
-                        $productsHtml .= '<div>• ' . htmlspecialchars($li['title'], ENT_QUOTES, 'UTF-8') . ' (<strong>' . htmlspecialchars($li['sku'], ENT_QUOTES, 'UTF-8') . '</strong>) x' . $li['quantity'] . '</div>';
-                    }                    
-                }
-            }
-            $total = isset($order['totalPriceSet']['shopMoney']['amount']) && isset($order['totalPriceSet']['shopMoney']['currencyCode']) ? $order['totalPriceSet']['shopMoney']['amount'] . ' ' . $order['totalPriceSet']['shopMoney']['currencyCode'] : 'N/A';
-            $date = isset($order['createdAt']) ? date('Y-m-d', strtotime($order['createdAt'])) : 'N/A';
+            $date = isset($order['createdAt']) ? $order['createdAt']/*date('Y-m-d', strtotime($order['createdAt']))*/ : 'N/A';
 
             // Formatting line items as a list
             $productsHtml = '';
