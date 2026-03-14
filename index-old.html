@@ -108,7 +108,7 @@
                 }
             `;
             const variables = {
-                "query": `{ orders(first: 250, reverse: true, query: \"financial_status:paid created_at:>'${getYesterdayLastSecondDate()}'\") { edges { node { id name createdAt displayFinancialStatus displayFulfillmentStatus updatedAt totalPriceSet { shopMoney { amount currencyCode } } customer { id email firstName lastName } shippingAddress { address1 city zip country } lineItems(first: 250) { edges { node { title quantity sku originalUnitPriceSet { shopMoney { amount } } } } } transactions(first: 250) { gateway kind status paymentDetails { __typename ... on CardPaymentDetails { company number } } } shippingLines(first: 250) { edges { node { title carrierIdentifier code source originalPriceSet { shopMoney { amount currencyCode } } discountedPriceSet { shopMoney { amount } } } } } } } pageInfo { hasNextPage hasPreviousPage endCursor startCursor } } }`,
+                "query": `{ orders(first: 250, reverse: true, query: \"financial_status:paid updated_at:>'${getYesterdayLastSecondDate()}'\") { edges { node { id name createdAt displayFinancialStatus displayFulfillmentStatus updatedAt totalPriceSet { shopMoney { amount currencyCode } } customer { id email firstName lastName } shippingAddress { address1 city zip country } lineItems(first: 250) { edges { node { title quantity sku originalUnitPriceSet { shopMoney { amount } } } } } transactions(first: 250) { gateway kind status paymentDetails { __typename ... on CardPaymentDetails { company number } } } shippingLines(first: 250) { edges { node { title carrierIdentifier code source originalPriceSet { shopMoney { amount currencyCode } } discountedPriceSet { shopMoney { amount } } } } } } } pageInfo { hasNextPage hasPreviousPage endCursor startCursor } } }`,
                 "groupObjects": true
             };
             const shopifyUrl = `${window.environment.API_URL}/${window.environment.VERSION}/graphql.json`;
@@ -176,8 +176,8 @@
             .then(response => {
                 console.log(response);
                 if(response.data.currentBulkOperation.status === "RUNNING") {
-                    messages.textContent = "Bulk operation is still running. Checking again in 5 seconds...";
-                    setTimeout(currentBulkOperation, 5000);
+                    messages.textContent = "Bulk operation is still running. Checking again in 1 seconds...";
+                    setTimeout(currentBulkOperation, 1000);
                 } else if(response.data.currentBulkOperation.status === "COMPLETED") {
                     messages.textContent = "Bulk operation completed successfully. File URL: " + response.data.currentBulkOperation.url;
                     downloadJSONL(response.data.currentBulkOperation.url);
