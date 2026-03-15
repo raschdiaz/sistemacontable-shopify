@@ -43,7 +43,7 @@
             }
         }',
         "variables" => array(
-            "query" => '{ orders(first: 250, reverse: true, query: \"financial_status:paid updated_at:>'.getYesterdayLastSecondDate().'\") { edges { node { id name createdAt displayFinancialStatus displayFulfillmentStatus updatedAt totalPriceSet { shopMoney { amount currencyCode } } customer { id email firstName lastName } shippingAddress { address1 city zip country } lineItems(first: 250) { edges { node { title quantity sku originalUnitPriceSet { shopMoney { amount } } } } } transactions(first: 250) { gateway kind status paymentDetails { __typename ... on CardPaymentDetails { company number } } } shippingLines(first: 250) { edges { node { title carrierIdentifier code source originalPriceSet { shopMoney { amount currencyCode } } discountedPriceSet { shopMoney { amount } } } } } } } pageInfo { hasNextPage hasPreviousPage endCursor startCursor } } }',
+            "query" => '{ orders(reverse: true, query: \"financial_status:paid updated_at:>'.getYesterdayLastSecondDate().'\") { edges { node { id name createdAt displayFinancialStatus displayFulfillmentStatus updatedAt totalPriceSet { shopMoney { amount currencyCode } } customer { id email firstName lastName } shippingAddress { address1 city zip country } lineItems(first: 250) { edges { node { title quantity sku originalUnitPriceSet { shopMoney { amount } } } } } transactions(first: 250) { gateway kind status paymentDetails { __typename ... on CardPaymentDetails { company number } } } shippingLines(first: 250) { edges { node { title carrierIdentifier code source originalPriceSet { shopMoney { amount currencyCode } } discountedPriceSet { shopMoney { amount } } } } } } } pageInfo { hasNextPage hasPreviousPage endCursor startCursor } } }',
             "groupObjects" => true
         )
     );
@@ -240,72 +240,80 @@
     }
     
     function generateShopifyTable($data, $containerId) {
-        // 1. DATA RESTRUCTURING (Link children to parents)
-       
-
-        // Separate parents (Orders) and children (Line Items/Shipping)
-        foreach ($data as $item) {
-            if (isset($item['id']) && strpos($item['id'], 'Order') !== false) {
-                $item['lineItems'] = array();
-                $ordersMap[$item['id']] = $item;
-                $processedOrders[] = $item;
-            }
-        }
-
-        // Attach children to their parents
-        /*foreach ($data as $item) {
-            if (isset($item['__parentId'])) {
-                $parentId = $item['__parentId'];
-                if (isset($ordersMap[$parentId])) {
-                    $ordersMap[$parentId]['lineItems'][] = $item;
-                }
-            }
-        }*/
-
-        // 2. TABLE GENERATION
-        echo "<div id='$containerId'>";
+        echo "<div id='" . $containerId . "'>";
         echo "<table border='1' style='border-collapse: collapse; width: 100%; font-family: sans-serif;'>";
         echo "<thead>";
         echo "<tr style='background-color: #f2f2f2;'>";
+        echo "<th></th>"; // Column for the expand/collapse icon
         echo "<th>Order Name</th>";
         echo "<th>Customer</th>";
         echo "<th>Creation Date</th>";
-        echo "<th>Updated Date</th>";
-        echo "<th>Total</th>";
-        echo "<th>Products (SKU)</th>";
         echo "<th>Status</th>";
+        echo "<th>Action</th>";
         echo "</tr>";
         echo "</thead>";
         echo "<tbody>";
 
-       foreach ($data as $order) {
+        foreach ($data as $index => $order) {
+            $orderId = htmlspecialchars($order['id'], ENT_QUOTES, 'UTF-8');
+            $rowId = "details_" . $index; // Unique ID for the child row
+            
             $customerName = isset($order['customer']) ? $order['customer']['firstName'] . ' ' . $order['customer']['lastName'] : 'N/A';
-            $total = isset($order['totalPriceSet']['shopMoney']['amount']) && isset($order['totalPriceSet']['shopMoney']['currencyCode']) ? $order['totalPriceSet']['shopMoney']['amount'] . ' ' . $order['totalPriceSet']['shopMoney']['currencyCode'] : 'N/A';
-            $date = isset($order['createdAt']) ? $order['createdAt']/*date('Y-m-d', strtotime($order['createdAt']))*/ : 'N/A';
+            $total = isset($order['totalPriceSet']['shopMoney']) ? $order['totalPriceSet']['shopMoney']['amount'] . ' ' . $order['totalPriceSet']['shopMoney']['currencyCode'] : 'N/A';
 
-            // Formatting line items as a list
-            $productsHtml = '';
-            if (isset($order['lineItems'])) {
-                foreach ($order['lineItems'] as $li) {
-                    if (isset($li['title']) && isset($li['sku'])) {
-                        $productsHtml .= '<div>• ' . htmlspecialchars($li['title'], ENT_QUOTES, 'UTF-8') . ' (<strong>' . htmlspecialchars($li['sku'], ENT_QUOTES, 'UTF-8') . '</strong>) x' . $li['quantity'] . '</div>';
-                    }                    
-                }
-            }
-
+            // --- Parent Row ---
             echo "<tr>";
+            // Toggle Button
+            echo "<td style='text-align:center;'><button onclick=\"toggleRow('$rowId')\" style='cursor:pointer;'>[+]</button></td>";
             echo "<td><strong>" . htmlspecialchars($order['name'], ENT_QUOTES, 'UTF-8') . "</strong></td>";
             echo "<td>" . htmlspecialchars($customerName, ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars($date, ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars($order['updatedAt'], ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td>" . htmlspecialchars($total, ENT_QUOTES, 'UTF-8') . "</td>";            
-            echo "<td>" . $productsHtml . "</td>";
+            echo "<td>" . htmlspecialchars($order['createdAt'], ENT_QUOTES, 'UTF-8') . "</td>";
             echo "<td>" . htmlspecialchars($order['displayFinancialStatus'], ENT_QUOTES, 'UTF-8') . "</td>";
-            echo "<td><button onclick=\"createInvoice('" . htmlspecialchars($order['id'], ENT_QUOTES, 'UTF-8') . "')\">Create Invoice</button></td>";
+            echo "<td><button onclick=\"createInvoice('$orderId')\">Create Invoice</button></td>";
+            echo "</tr>";
+
+            // --- Child Row (Hidden by default) ---
+            echo "<tr id='$rowId' style='display:none; background-color: #fafafa;'>";
+            echo "<td></td>"; // Empty cell under the toggle column
+            echo "<td colspan='5'>"; // Span across the rest of the columns
+            
+            echo "<div style='padding: 15px;'>";
+            echo "<strong>Order Details:</strong><br>";
+            echo "Updated At: " . htmlspecialchars($order['updatedAt'], ENT_QUOTES, 'UTF-8') . "<br>";
+            echo "Total Amount: " . htmlspecialchars($total, ENT_QUOTES, 'UTF-8') . "<hr>";
+            
+            echo "<strong>Line Items:</strong>";
+            if (isset($order['lineItems']) && is_array($order['lineItems'])) {
+                foreach ($order['lineItems'] as $li) {
+                    echo "<div style='margin-left: 15px;'>• " . htmlspecialchars($li['title'], ENT_QUOTES, 'UTF-8') . 
+                        " (<strong>" . htmlspecialchars($li['sku'], ENT_QUOTES, 'UTF-8') . "</strong>) x" . 
+                        ($li['quantity'] ?? 1) . "</div>";
+                }
+            }
+            echo "</div>";
+            
+            echo "</td>";
             echo "</tr>";
         }
 
         echo "</tbody></table>";
         echo "</div>";
+
+        // Simple JS helper to toggle visibility
+        echo "
+        <script>
+        function toggleRow(id) {
+            var row = document.getElementById(id);
+            var btn = event.target;
+            if (row.style.display === 'none') {
+                row.style.display = 'table-row';
+                btn.innerText = '[-]';
+            } else {
+                row.style.display = 'none';
+                btn.innerText = '[+]';
+            }
+        }
+        </script>
+        ";
     }
 ?>
