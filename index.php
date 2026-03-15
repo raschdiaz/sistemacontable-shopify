@@ -25,7 +25,6 @@
                 bulkOperation {
                 completedAt
                 createdAt
-                updatedAt
                 errorCode
                 fileSize
                 id
@@ -143,9 +142,11 @@
                         echo "Bulk operation is still running. Checking again in 1 seconds..<br>";
                         sleep(1); // Wait for 1 seconds before checking again
                         currentBulkOperation();
-                    } else {
+                    } else if($responseDecoded['data']['currentBulkOperation']['status'] === 'COMPLETED') {
                         echo "Bulk operation completed successfully. File URL: " . $responseDecoded['data']['currentBulkOperation']['url']."<br>";
                         downloadJSONL($responseDecoded['data']['currentBulkOperation']['url']);
+                    } else {
+                        echo "Bulk operation ended with status: " . $responseDecoded['data']['currentBulkOperation']['status'] . "<br>";
                     }
                 } else {
                     echo "Status not found in response.<br>";
